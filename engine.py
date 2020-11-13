@@ -12,7 +12,7 @@ class engine(object):
         :param args: command-line arguments
         """
         self.args_ = args
-        self.ii_ = inverted_index( args[ 'l' ] )
+        self.ii_ = inverted_index( args[ 'documents' ] )
 
 
     def run(self) :
