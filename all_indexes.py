@@ -198,6 +198,7 @@ class Indexes(object):
                     # If no wildcard, add to dict as is, in order to enable user to have wildcard in of the two terms
                     permuterm_matches[t] = [t]
 
+            # If no wildcard was found, perform usual "AND" query
             if wildcards is False:
                 return self.query_and_(term1, term2)
 
@@ -222,15 +223,17 @@ class Indexes(object):
                     # TODO: Return or store and then return?
                     results.append(self.query_and_(t1, t2))
                     # return self.query_and_(t1, t2)
-
                 return results
 
         else:
             # Check if there is a wildcard in term1
             if '*' in term1:
                 permuterm_matches = self.permuterm_lookup(term1)
+                results = []
                 for t in permuterm_matches:
-                    return self.query_(t)
+                    postings = self.query_(t)
+                    results.append(postings.linked_list_)
+                return results
 
             return self.query_(term1)
 
@@ -309,5 +312,5 @@ class Indexes(object):
         return result
 
 index = Indexes('postillon.csv')
-per_lookup = index.permuterm_lookup('Wasser*')
-query_result = index.query('Wasser*')
+per_lookup = index.permuterm_lookup('*wasser')
+query_result = index.query('*wasser')
