@@ -25,6 +25,9 @@ class Indexes(object):
             # Initialize the inverted index
             self.index(file)
 
+            # Initialize permuterm index
+            self.build_permuterm_index()
+
 
     def index (self, filename):
         """
@@ -111,7 +114,62 @@ class Indexes(object):
                 curr_entry.add_document(id)
 
         # the last entry is assigned here.
-        self.dict_[prev_term] = curr_entry
+        self.inverted[prev_term] = curr_entry
+
+    # Build dictionary mapping rotations of the wildcard to each term
+    def build_permuterm_index(self):
+        terms = list(self.inverted.keys())
+        symbol = '$'
+
+        for t in terms:
+            start = 0
+            end = len(t)
+
+            while start != len(t) + 1:
+                rotation = t[start:end] + symbol + t[:start]
+                self.permuterm[rotation] = t
+                start += 1
+                end += 1
+
+    def permuterm_lookup(self, term):
+
+        matches = []
+
+        # Find position(s) of wildcard(s)
+        wildcard_position = [pos for pos, char in enumerate(term) if char == '*']
+
+        # Remove wildcard symbol to look up in permuterm index
+        term1_clean = term.replace('*', '')
+
+        # *X* --> X*
+        if len(wildcard_position) > 1:
+            for key, value in self.permuterm.items():
+                if key.startswith(term1_clean):
+                    matches.append(value)
+        else:
+            wildcard_position = wildcard_position[0]
+            # X* --> $X*
+            if wildcard_position == len(term) - 1:
+                for key, value in self.permuterm.items():
+                    lookup = '$' + term1_clean
+                    if key.startswith(lookup):
+                        matches.append(value)
+            # *X --> X$*
+            elif wildcard_position == [0]:
+                for key, value in self.permuterm.items():
+                    lookup = term1_clean + '$'
+                    if key.startswith(lookup):
+                        matches.append(value)
+            # X*Y --> Y$X*
+            else:
+                lookup = term[int(wildcard_position):] + '$' + term[:int(wildcard_position)]
+                # Clean again, because we used the original query term with the wildcard in previous step
+                lookup_clean = lookup.replace('*', '')
+                for key, value in self.permuterm.items():
+                    if key.startswith(lookup_clean):
+                        matches.append(value)
+
+        return matches
 
     def query(self, term1, term2 = None):
 
@@ -250,3 +308,6 @@ class Indexes(object):
 
         return result
 
+index = Indexes('postillon.csv')
+per_lookup = index.permuterm_lookup('Wasser*')
+query_result = index.query('Wasser*')
