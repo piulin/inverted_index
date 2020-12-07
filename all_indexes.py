@@ -2,7 +2,7 @@ from model.entry import entry
 from model.postings_list import postings_list
 from utils import tokenize
 from utils import normalize
-from itertools import permutations
+from itertools import permutations, product
 
 
 """
@@ -203,26 +203,12 @@ class Indexes(object):
                 return self.query_and_(term1, term2)
 
             else:
-                # Get all combinations of wildcard matches for term1 and term2
-                # TODO: Find a more efficient way of doing this.
-                combinations = []
-                term1_perms = permutations(permuterm_matches[term1], len(permuterm_matches[term2]))
-                for perm in term1_perms:
-                    zipped = zip(perm, permuterm_matches[term2])
-                    combinations.append(zipped)
-                
-                # Add to an un-nested list so we can perform query search
-                combinations_final = []
-                for zp in combinations:
-                    for el in zp:
-                        combinations_final.append(el)
-
-                # Lookup all combinations of wildcard terms for term1 and term2
+                # Retrieve postings results for all combinations of wildcard matches for term1 and term2
                 results = []
-                for t1, t2 in combinations_final:
-                    # TODO: Return or store and then return?
-                    results.append(self.query_and_(t1, t2))
-                    # return self.query_and_(t1, t2)
+                for t1, t2 in product(permuterm_matches[term1], permuterm_matches[term2]):
+                    postings = self.query_and_(t1, t2)
+                    if postings.size_ != 0:
+                        results.append(postings.linked_list_)
                 return results
 
         else:
@@ -311,6 +297,10 @@ class Indexes(object):
 
         return result
 
+
+""" These seem to be working
 index = Indexes('postillon.csv')
-per_lookup = index.permuterm_lookup('*wasser')
-query_result = index.query('*wasser')
+
+query_result1 = index.query('*wasser', 'Wasser*')
+query_result2 = index.query('*wasser*', 'Wa*ser')
+"""
