@@ -2,11 +2,13 @@ from model.entry import entry
 from model.postings_list import postings_list
 from utils import tokenize
 from utils import normalize
+from itertools import permutations
+
 
 """
 Class containing the inverted index data and main operations.
 """
-class inverted_index(object):
+class Indexes(object):
 
     def __init__(self, file=None ):
         """
@@ -14,12 +16,11 @@ class inverted_index(object):
         :param file: If provided, the object is initialized by indexing the documents inside it.
         """
 
-        self.dict_ = {}
-
+        self.inverted = {}
         self.docs_ = []
+        self.permuterm = {}
 
         if (file != None):
-
 
             # Initialize the inverted index
             self.index(file)
@@ -38,7 +39,6 @@ class inverted_index(object):
         self.build_inverted_index( alltermsid_index )
 
 
-
     def create_sorted_token_ids_index ( self, filename ):
         """
         Create a sorted term list from all documents in a CSV.
@@ -50,7 +50,7 @@ class inverted_index(object):
         alltermsid = []
 
         # open the CSV file
-        with open(filename, "r") as fp:
+        with open(filename, "r", encoding='utf-8') as fp:
 
             # discard the header
             fp.readline()
@@ -101,7 +101,7 @@ class inverted_index(object):
             else:
 
                 # Add the current entry using the last term as key.
-                self.dict_[prev_term] = curr_entry
+                self.inverted[prev_term] = curr_entry
 
                 # update
                 prev_term = term
@@ -124,14 +124,57 @@ class inverted_index(object):
         """
 
         # AND query branch
-        if  term2 != None:
+        if term2 is not None:
 
-            return self.query_and_(term1,term2)
+            terms = [term1, term2]
+            wildcards = False
+            permuterm_matches = {}
+
+            # Check if wildcards present in query
+            for t in terms:
+                if '*' in t:
+                    wildcards = True
+                    perm_t = self.permuterm_lookup(t)
+                    permuterm_matches[t] = perm_t
+                else:
+                    # If no wildcard, add to dict as is, in order to enable user to have wildcard in of the two terms
+                    permuterm_matches[t] = [t]
+
+            if wildcards is False:
+                return self.query_and_(term1, term2)
+
+            else:
+                # Get all combinations of wildcard matches for term1 and term2
+                # TODO: Find a more efficient way of doing this.
+                combinations = []
+                term1_perms = permutations(permuterm_matches[term1], len(permuterm_matches[term2]))
+                for perm in term1_perms:
+                    zipped = zip(perm, permuterm_matches[term2])
+                    combinations.append(zipped)
+                
+                # Add to an un-nested list so we can perform query search
+                combinations_final = []
+                for zp in combinations:
+                    for el in zp:
+                        combinations_final.append(el)
+
+                # Lookup all combinations of wildcard terms for term1 and term2
+                results = []
+                for t1, t2 in combinations_final:
+                    # TODO: Return or store and then return?
+                    results.append(self.query_and_(t1, t2))
+                    # return self.query_and_(t1, t2)
+
+                return results
 
         else:
+            # Check if there is a wildcard in term1
+            if '*' in term1:
+                permuterm_matches = self.permuterm_lookup(term1)
+                for t in permuterm_matches:
+                    return self.query_(t)
 
             return self.query_(term1)
-
 
     def query_ ( self, term ):
         """
@@ -141,7 +184,7 @@ class inverted_index(object):
         """
         try:
 
-            return self.dict_ [ term ].postings_list()
+            return self.inverted [ term].postings_list()
 
         except :
 
@@ -162,8 +205,8 @@ class inverted_index(object):
         # try to retrieve the postings list for each term
         try:
 
-            pl1 =  self.dict_[ term1 ].postings_list()
-            pl2 =  self.dict_[ term2 ].postings_list()
+            pl1 =  self.inverted[ term1].postings_list()
+            pl2 =  self.inverted[ term2].postings_list()
 
         # If it's not possible for either of them, then the intersection is just empty.
         except:
