@@ -1,4 +1,4 @@
-from inverted_index import inverted_index
+from all_indexes import Indexes
 from teletype import teletype
 
 """
@@ -12,7 +12,7 @@ class engine(object):
         :param args: command-line arguments
         """
         self.args_ = args
-        self.ii_ = inverted_index( args[ 'documents' ] )
+        self.ii_ = Indexes(args['documents'])
 
 
     def run(self) :
