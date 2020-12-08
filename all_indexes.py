@@ -2,7 +2,7 @@ from model.entry import entry
 from model.postings_list import postings_list
 from utils import tokenize
 from utils import normalize
-from itertools import permutations, product
+from itertools import product
 
 
 """
@@ -116,8 +116,10 @@ class Indexes(object):
         # the last entry is assigned here.
         self.inverted[prev_term] = curr_entry
 
-    # Build dictionary mapping rotations of the wildcard to each term
     def build_permuterm_index(self):
+        """
+        Builds dictionary that maps permutations of a term to the corresponding original term.
+        """
         terms = list(self.inverted.keys())
         symbol = '$'
 
@@ -132,13 +134,17 @@ class Indexes(object):
                 end += 1
 
     def permuterm_lookup(self, term):
+        """
+        Retrieves all matches of a term with a wildcard using the permuterm index.
+        :param term: string with wildcard.
+        """
 
         matches = []
 
         # Find position(s) of wildcard(s)
         wildcard_position = [pos for pos, char in enumerate(term) if char == '*']
 
-        # Remove wildcard symbol to look up in permuterm index
+        # Remove wildcard symbol to look up term in permuterm index
         term1_clean = term.replace('*', '')
 
         # *X* --> X*
@@ -296,11 +302,3 @@ class Indexes(object):
             pass
 
         return result
-
-
-""" These seem to be working
-index = Indexes('postillon.csv')
-
-query_result1 = index.query('*wasser', 'Wasser*')
-query_result2 = index.query('*wasser*', 'Wa*ser')
-"""
